@@ -56,11 +56,11 @@ I have been testing with Half-Life 2 to confirm that these inputs work with Dire
 - keyUp()
 - press()
 - write() / typewrite()
+- scroll functions
+- drag functions
 
 ## Features NOT Implemented
 
-- scroll functions
-- drag functions
 - hotkey functions
 - support for special characters requiring the shift key (ie. '!', '@', '#'...)
 - ignored parameters on mouse functions: duration, tween, logScreenshot
