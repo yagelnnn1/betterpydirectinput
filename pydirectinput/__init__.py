@@ -19,6 +19,9 @@ RIGHT = "right"
 PRIMARY = "primary"
 SECONDARY = "secondary"
 
+# Constant for mouse scroll wheel
+WHEEL_DELTA = 120
+
 # Mouse Scan Code Mappings
 MOUSEEVENTF_MOVE = 0x0001
 MOUSEEVENTF_ABSOLUTE = 0x8000
@@ -31,6 +34,7 @@ MOUSEEVENTF_RIGHTCLICK = MOUSEEVENTF_RIGHTDOWN + MOUSEEVENTF_RIGHTUP
 MOUSEEVENTF_MIDDLEDOWN = 0x0020
 MOUSEEVENTF_MIDDLEUP = 0x0040
 MOUSEEVENTF_MIDDLECLICK = MOUSEEVENTF_MIDDLEDOWN + MOUSEEVENTF_MIDDLEUP
+MOUSEEVENTF_WHEEL = 0x0800
 
 # KeyBdInput Flags
 KEYEVENTF_EXTENDEDKEY = 0x0001
@@ -325,18 +329,20 @@ def mouseUp(x=None, y=None, button=PRIMARY, duration=None, tween=None, logScreen
 # Ignored parameters: duration, tween, logScreenshot
 @_genericPyDirectInputChecks
 def click(x=None, y=None, clicks=1, interval=0.0, button=PRIMARY, duration=None, tween=None, logScreenshot=None,
-          _pause=True):
+          _pause=True, ev=None):
     if not x is None or not y is None:
         moveTo(x, y)
 
-    ev = None
-    if button == PRIMARY or button == LEFT:
-        ev = MOUSEEVENTF_LEFTCLICK
-    elif button == MIDDLE:
-        ev = MOUSEEVENTF_MIDDLECLICK
-    elif button == SECONDARY or button == RIGHT:
-        ev = MOUSEEVENTF_RIGHTCLICK
-
+    if ev == None:
+        if button == PRIMARY or button == LEFT:
+            ev = MOUSEEVENTF_LEFTCLICK
+        elif button == MIDDLE:
+            ev = MOUSEEVENTF_MIDDLECLICK
+        elif button == SECONDARY or button == RIGHT:
+            ev = MOUSEEVENTF_RIGHTCLICK
+    else:
+        if ev != MOUSEEVENTF_LEFTCLICK and ev != MOUSEEVENTF_LEFTUP and ev != MOUSEEVENTF_LEFTDOWN and ev != MOUSEEVENTF_MIDDLECLICK and ev != MOUSEEVENTF_MIDDLEUP and ev != MOUSEEVENTF_MIDDLEDOWN and ev != MOUSEEVENTF_RIGHTCLICK and ev != MOUSEEVENTF_RIGHTUP and ev != MOUSEEVENTF_RIGHTDOWN:
+            raise ValueError('ev arg must be a mouse event (left up, left down, left click, ...)')
     if not ev:
         raise ValueError('button arg to _click() must be one of "left", "middle", or "right", not %s' % button)
 
@@ -372,7 +378,17 @@ def tripleClick(x=None, y=None, interval=0.0, button=LEFT, duration=0.0, tween=N
     click(x, y, 3, interval, button, duration, tween, logScreenshot, _pause)
 
 
-# Missing feature: scroll functions
+# A positive value indicates that the wheel was rotated forward, away from the user; a negative value indicates that the wheel was rotated backward, toward the user. One wheel click is defined as WHEEL_DELTA, which is 120.
+# is_mouse_scroll parameter means if the scroll value should be treated as "amount of times the mouse scrolled" or as the normal scroll value.
+@_genericPyDirectInputChecks
+def scroll(scroll, is_mouse_scroll=False):
+    x, y = position()
+    ev = MOUSEEVENTF_WHEEL
+    extra = ctypes.c_ulong(0)
+    ii_ = Input_I()
+    ii_.mi = MouseInput(x, y, scroll * WHEEL_DELTA if is_mouse_scroll else scroll, ev, 0, ctypes.pointer(extra))
+    mouse_input = Input(ctypes.c_ulong(0), ii_)
+    SendInput(1, ctypes.pointer(mouse_input), ctypes.sizeof(mouse_input))
 
 
 # Ignored parameters: duration, tween, logScreenshot
@@ -425,7 +441,27 @@ def moveRel(xOffset=None, yOffset=None, duration=None, tween=None, logScreenshot
 move = moveRel
 
 
-# Missing feature: drag functions
+@_genericPyDirectInputChecks
+def drag(xStart, yStart, xDest, yDest, button=PRIMARY, time_between=None):
+    ev1 = None
+    ev2 = None
+    if button == PRIMARY or button == LEFT:
+        ev1 = MOUSEEVENTF_LEFTDOWN
+        ev2 = MOUSEEVENTF_LEFTUP
+    elif button == MIDDLE:
+        ev1 = MOUSEEVENTF_MIDDLEDOWN
+        ev2 = MOUSEEVENTF_MIDDLEUP
+    elif button == RIGHT:
+        ev1 = MOUSEEVENTF_RIGHTDOWN
+        ev2 = MOUSEEVENTF_RIGHTUP
+    
+    if ev1 is None or ev2 is None:
+        raise ValueError('button arg to drag() must be one of "left", "middle", or "right", not %s' % button)
+
+    click(xStart, yStart, ev=ev1)
+    if time_between is not None and isinstance(time_between, float):
+        time.sleep(time_between)
+    click(xDest, yDest, ev=ev2)
 
 
 # Keyboard Functions
